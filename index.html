@@ -249,9 +249,11 @@
       position: relative; width: 300px; height: 300px; border-radius: 50%;
       padding: 6px; background: var(--surface); border: 1px solid var(--border);
       box-shadow: var(--shadow-lg); cursor: pointer;
-      transition: transform 0.5s var(--ease-spring);
+      --photo-tilt-x: 0deg; --photo-tilt-y: 0deg; --photo-scale: 1;
+      transform: perspective(800px) rotateX(var(--photo-tilt-y)) rotateY(var(--photo-tilt-x)) scale(var(--photo-scale));
+      transition: transform 0.5s var(--ease-spring), box-shadow 0.5s ease;
     }
-    .hero-photo-wrapper:hover { transform: rotate(-3deg) scale(1.03); }
+    .hero-photo-wrapper:hover { --photo-scale: 1.03; box-shadow: 0 24px 48px rgba(79,70,229,0.18); }
     .hero-photo-wrapper::after {
       content: ""; position: absolute; inset: -8px; border-radius: 50%;
       background: conic-gradient(from 0deg, var(--accent), var(--accent-2), var(--accent));
@@ -259,6 +261,10 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
     .hero-photo-wrapper img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; border: 2px solid var(--bg); }
+    @media (prefers-reduced-motion: reduce) {
+      .hero-photo-wrapper { transition: none; }
+      .hero-photo-wrapper::after { animation: none; }
+    }
 
     /* ============================================================
        MARQUEE
@@ -1542,6 +1548,24 @@
       const photoTrigger = document.getElementById('photoTrigger');
       const lightbox = document.getElementById('lightbox');
       const lightboxImg = document.getElementById('lightboxImg');
+      const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (!reducedMotion && window.matchMedia('(pointer: fine)').matches) {
+        let tiltFrame;
+        photoTrigger.addEventListener('pointermove', e => {
+          if (tiltFrame) cancelAnimationFrame(tiltFrame);
+          tiltFrame = requestAnimationFrame(() => {
+            const rect = photoTrigger.getBoundingClientRect();
+            const x = (e.clientX - rect.left) / rect.width - 0.5;
+            const y = (e.clientY - rect.top) / rect.height - 0.5;
+            photoTrigger.style.setProperty('--photo-tilt-x', `${x * 10}deg`);
+            photoTrigger.style.setProperty('--photo-tilt-y', `${y * -10}deg`);
+          });
+        });
+        photoTrigger.addEventListener('pointerleave', () => {
+          photoTrigger.style.setProperty('--photo-tilt-x', '0deg');
+          photoTrigger.style.setProperty('--photo-tilt-y', '0deg');
+        });
+      }
       photoTrigger.addEventListener('click', () => {
         lightboxImg.src = photoTrigger.querySelector('img').src;
         lightbox.style.opacity = '1';
